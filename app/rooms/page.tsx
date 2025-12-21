@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation"; // 1. IMPORT ROUTER
+import { useRouter } from "next/navigation"; 
 
 // Definisikan Tipe Data dari API Laravel
 type Room = {
@@ -18,7 +18,7 @@ type Room = {
 };
 
 export default function RoomsPage() {
-  const router = useRouter(); // 2. INISIALISASI ROUTER
+  const router = useRouter(); 
 
   // STATE
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -159,8 +159,9 @@ export default function RoomsPage() {
                 </div>
 
                 <div className="flex gap-4 pt-6">
-                  {/* Link Detail (Disesuaikan ke /rooms/) */}
-                  <Link href={`/rooms/${room.slug}`} className="border border-[#D4AF37] text-[#D4AF37] px-8 py-3 rounded hover:bg-[#D4AF37] hover:text-white transition duration-300 font-bold uppercase text-sm">
+                  {/* === PERUBAHAN UTAMA ADA DI SINI === */}
+                  {/* Mengubah href dari /rooms/ menjadi /kamar/ agar sesuai folder */}
+                  <Link href={`/kamar/${room.slug}`} className="border border-[#D4AF37] text-[#D4AF37] px-8 py-3 rounded hover:bg-[#D4AF37] hover:text-white transition duration-300 font-bold uppercase text-sm">
                     Detail
                   </Link>
                   

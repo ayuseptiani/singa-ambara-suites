@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation"; 
+import { useParams, useRouter } from "next/navigation"; // 1. TAMBAH IMPORT useRouter
 
 // Tipe Data Kamar
 type Room = {
@@ -19,6 +19,7 @@ type Room = {
 
 export default function RoomDetail() {
   const params = useParams();
+  const router = useRouter(); // 2. INISIALISASI ROUTER
   const slug = params.slug as string;
 
   const [room, setRoom] = useState<Room | null>(null);
@@ -30,7 +31,6 @@ export default function RoomDetail() {
 
     const fetchRoomDetail = async () => {
       try {
-        // PERBAIKAN 1: Gunakan Env Var & Endpoint Spesifik (/rooms/slug)
         const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api'}/rooms/${slug}`;
         const res = await fetch(url);
         
@@ -40,12 +40,9 @@ export default function RoomDetail() {
         
         const data = await res.json();
 
-        // PERBAIKAN 2: Normalisasi Data (Jaga-jaga backend kirim String)
         const formattedRoom = {
             ...data,
-            // Paksa price jadi number agar tidak muncul RpNaN
             price: Number(data.price), 
-            // Cek apakah facilities string JSON atau sudah Array
             facilities: typeof data.facilities === 'string' ? JSON.parse(data.facilities) : data.facilities
         };
 
@@ -60,6 +57,23 @@ export default function RoomDetail() {
 
     fetchRoomDetail();
   }, [slug]);
+
+  // 3. LOGIKA BOOKING PINTAR (SATPAM DIGITAL)
+  // Logika ini sama persis dengan yang ada di halaman daftar kamar
+  const handleBookNow = () => {
+    if (!room) return;
+
+    // Cek Tiket (Token) di LocalStorage
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      // SUDAH LOGIN: Langsung arahkan ke halaman Booking
+      router.push(`/booking?room=${room.slug}`);
+    } else {
+      // BELUM LOGIN: Arahkan ke Login dulu, bawa parameter returnUrl
+      router.push(`/login?returnUrl=/booking?room=${room.slug}`);
+    }
+  };
 
   // --- TAMPILAN LOADING ---
   if (isLoading) {
@@ -125,7 +139,6 @@ export default function RoomDetail() {
               Fasilitas
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Rendering Fasilitas dengan Safety Check */}
                 {room.facilities && Array.isArray(room.facilities) && room.facilities.map((fac, idx) => (
                     <div key={idx} className="flex items-center gap-4 bg-[#1A2225] p-4 rounded-lg border border-white/5">
                         <span className="text-[#D4AF37] text-2xl">✨</span>
@@ -143,7 +156,6 @@ export default function RoomDetail() {
               <p className="text-gray-400 text-sm uppercase tracking-widest mb-2">Harga Mulai</p>
               <div className="flex items-baseline justify-center gap-1">
                 <span className="text-[#D4AF37] text-4xl font-bold font-serif">
-                    {/* Format Harga Rupiah */}
                     {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(room.price)}
                 </span>
                 <span className="text-gray-500 text-sm">/malam</span>
@@ -151,12 +163,15 @@ export default function RoomDetail() {
             </div>
             
             <div className="space-y-4">
-              <Link 
-                href={`/login?returnUrl=/booking?room=${room.slug}`}
-                className="block w-full text-center bg-[#9F8034] hover:bg-[#8A6E2A] text-white py-4 rounded font-bold uppercase tracking-widest transition duration-300 shadow-lg"
+              
+              {/* 4. TOMBOL BOOKING (UPDATED) */}
+              {/* Menggunakan <button> dengan onClick, bukan <Link> */}
+              <button 
+                onClick={handleBookNow}
+                className="block w-full text-center bg-[#9F8034] hover:bg-[#8A6E2A] text-white py-4 rounded font-bold uppercase tracking-widest transition duration-300 shadow-lg cursor-pointer"
               >
                 Book Now
-              </Link>
+              </button>
 
               <Link href="/rooms" className="block w-full border border-gray-600 text-gray-400 hover:text-white hover:border-white py-4 rounded font-bold uppercase tracking-widest text-center transition duration-300">
                 Kembali ke Daftar
