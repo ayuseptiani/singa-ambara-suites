@@ -4,8 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation"; 
+import api from "@/lib/axios"; // Menggunakan Axios
 
-// Definisikan Tipe Data dari API Laravel
 type Room = {
   id: number;
   slug: string;
@@ -20,25 +20,19 @@ type Room = {
 export default function RoomsPage() {
   const router = useRouter(); 
 
-  // STATE
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
 
-  // 1. FETCH DATA DARI LARAVEL SAAT PAGE LOAD
   useEffect(() => {
     const fetchRooms = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
-        const res = await fetch(`${apiUrl}/rooms`);
+        // Menggunakan Axios (URL Base sudah diatur di lib/axios.ts)
+        const res = await api.get('/rooms');
+        const data = res.data;
         
-        if (!res.ok) throw new Error("Gagal mengambil data");
-        
-        const data = await res.json();
-        
-        // Normalisasi data fasilitas (jaga-jaga jika string)
         const formattedData = data.map((item: any) => ({
             ...item,
             facilities: typeof item.facilities === 'string' ? JSON.parse(item.facilities) : item.facilities
@@ -55,21 +49,15 @@ export default function RoomsPage() {
     fetchRooms();
   }, []);
 
-  // 2. LOGIKA BOOKING PINTAR (SATPAM DIGITAL)
   const handleBookNow = (slug: string) => {
-    // Cek Tiket (Token)
     const token = localStorage.getItem("token");
-
     if (token) {
-      // SUDAH LOGIN: Langsung ke Booking
       router.push(`/booking?room=${slug}`);
     } else {
-      // BELUM LOGIN: Ke Login dulu
       router.push(`/login?returnUrl=/booking?room=${slug}`);
     }
   };
 
-  // 3. LOGIKA FILTER
   const filteredRooms = rooms.filter((room) => {
     const matchesSearch = room.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "All" || room.category === selectedCategory;
@@ -83,7 +71,6 @@ export default function RoomsPage() {
       <div className="max-w-7xl mx-auto px-4 md:px-10 relative z-10 mb-16">
         <div className="bg-[#1A2225] p-6 rounded-xl shadow-2xl border border-white/10 flex flex-col md:flex-row gap-4 items-center">
           
-          {/* Input Search */}
           <div className="relative w-full md:flex-1">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
             <input 
@@ -95,7 +82,6 @@ export default function RoomsPage() {
             />
           </div>
 
-          {/* Dropdown Filter */}
           <div className="w-full md:w-64">
             <select 
               value={selectedCategory}
@@ -140,7 +126,6 @@ export default function RoomsPage() {
                       {room.category}
                     </span>
                   </div>
-                  {/* Format Harga Rupiah */}
                   <p className="text-xl font-bold text-white">
                     {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(room.price)} 
                     <span className="text-sm font-normal text-gray-500">/malam</span>
@@ -151,7 +136,6 @@ export default function RoomsPage() {
                   {room.description}
                 </p>
                 
-                {/* List Fasilitas */}
                 <div className="grid grid-cols-2 gap-2 text-sm text-gray-400 font-mono pt-2">
                   {room.facilities && room.facilities.slice(0, 4).map((fac, i) => (
                     <span key={i}>• {fac}</span>
@@ -159,13 +143,10 @@ export default function RoomsPage() {
                 </div>
 
                 <div className="flex gap-4 pt-6">
-                  {/* === PERUBAHAN UTAMA ADA DI SINI === */}
-                  {/* Mengubah href dari /rooms/ menjadi /kamar/ agar sesuai folder */}
                   <Link href={`/kamar/${room.slug}`} className="border border-[#D4AF37] text-[#D4AF37] px-8 py-3 rounded hover:bg-[#D4AF37] hover:text-white transition duration-300 font-bold uppercase text-sm">
                     Detail
                   </Link>
                   
-                  {/* TOMBOL BOOKING PINTAR */}
                   <button 
                     onClick={() => handleBookNow(room.slug)}
                     className="bg-[#9F8034] text-white px-8 py-3 rounded hover:bg-[#8A6E2A] transition duration-300 font-bold uppercase text-sm flex items-center justify-center shadow-lg"

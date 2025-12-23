@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import api from "@/lib/axios"; // Menggunakan Axios
 
 // Tipe Data Hasil API
 type AvailableRoom = {
@@ -78,22 +79,16 @@ export default function BookingBar() {
     try {
         const checkInStr = formatForApi(startDate);
         const checkOutStr = formatForApi(endDate);
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
-
-        const query = `?check_in=${checkInStr}&check_out=${checkOutStr}&adults=${adults}&children=${children}`;
         
-        const res = await fetch(`${apiUrl}/check-availability${query}`);
-        const data = await res.json();
+        // Menggunakan Axios
+        const res = await api.get(`/check-availability?check_in=${checkInStr}&check_out=${checkOutStr}&adults=${adults}&children=${children}`);
+        const data = res.data;
 
-        if (res.ok) {
-            setResults(data.rooms);
-            setShowModal(true); // Buka Modal
-            
-            if (data.rooms.length === 0) {
-                setSearchMessage("Maaf, tidak ada kamar tersedia untuk kriteria pencarian Anda.");
-            }
-        } else {
-            alert("Terjadi kesalahan pada server.");
+        setResults(data.rooms);
+        setShowModal(true); // Buka Modal
+        
+        if (data.rooms.length === 0) {
+            setSearchMessage("Maaf, tidak ada kamar tersedia untuk kriteria pencarian Anda.");
         }
     } catch (error) {
         console.error("Error:", error);
@@ -321,7 +316,7 @@ export default function BookingBar() {
       </div>
     </div>
 
-    {/* === MODAL POP-UP HASIL PENCARIAN (BARU) === */}
+    {/* === MODAL POP-UP HASIL PENCARIAN === */}
     {showModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
           <div className="bg-[#1A2225] w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[#D4AF37]/30 shadow-2xl relative">
@@ -356,24 +351,24 @@ export default function BookingBar() {
                   
                   {/* Gambar Kamar */}
                   <div className="md:w-1/3 h-48 md:h-auto relative">
-                     <Image 
-                       src={room.image} 
-                       alt={room.name} 
-                       fill 
-                       className="object-cover"
-                     />
-                     
-                     {/* BADGE STOK (LOGIKA BARU DARI BACKEND) */}
-                     {room.available_qty <= 3 && (
+                      <Image 
+                        src={room.image} 
+                        alt={room.name} 
+                        fill 
+                        className="object-cover"
+                      />
+                      
+                      {/* BADGE STOK */}
+                      {room.available_qty <= 3 && (
                         <div className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse shadow-lg z-10">
                             🔥 Tersisa {room.available_qty} Kamar!
                         </div>
-                     )}
-                     {room.available_qty > 3 && (
+                      )}
+                      {room.available_qty > 3 && (
                         <div className="absolute top-2 left-2 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10">
                             ✅ Tersedia
                         </div>
-                     )}
+                      )}
                   </div>
 
                   {/* Info Kamar */}

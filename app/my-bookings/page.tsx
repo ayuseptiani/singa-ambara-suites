@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import api from "@/lib/axios"; // Menggunakan Axios
 
 export default function MyBookingsPage() {
   const router = useRouter();
@@ -16,15 +17,9 @@ export default function MyBookingsPage() {
 
     const fetchBookings = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
-        const res = await fetch(`${apiUrl}/my-bookings`, {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        
-        if (res.ok) {
-            const data = await res.json();
-            setBookings(data);
-        }
+        // Axios Call (Header Token otomatis dari interceptor)
+        const res = await api.get('/my-bookings');
+        setBookings(res.data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -35,13 +30,11 @@ export default function MyBookingsPage() {
     fetchBookings();
   }, [router]);
 
-  // 2. FUNGSI LOGOUT (Baru Ditambahkan)
+  // 2. FUNGSI LOGOUT
   const handleLogout = () => {
-    // Hapus data token dari browser
     localStorage.removeItem("token");
     localStorage.removeItem("user_name");
     
-    // Beri notifikasi & kembalikan ke Home
     alert("Anda telah berhasil logout.");
     router.push("/");
   };

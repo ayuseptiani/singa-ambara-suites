@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import AdminSidebar from "@/components/AdminSidebar";
+import api from "@/lib/axios"; // Menggunakan Axios
 
 // --- TIPE DATA ---
 type User = {
@@ -57,47 +58,40 @@ export default function AdminDashboard() {
 
   // 1. FETCH DATA
   const fetchData = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return router.push("/login");
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
-    const headers = { "Authorization": `Bearer ${token}` };
-
     try {
+      // Axios Calls (Token otomatis di-inject dari localStorage)
+      
       // Fetch Bookings
-      const resBooking = await fetch(`${apiUrl}/admin/bookings`, { headers });
-      if (resBooking.ok) {
-          setBookings(await resBooking.json());
-      } else if (resBooking.status === 401) {
-          localStorage.clear();
-          router.push("/login");
-          return;
-      }
+      const resBooking = await api.get('/admin/bookings');
+      setBookings(resBooking.data);
 
       // Fetch Rooms
-      const resRooms = await fetch(`${apiUrl}/rooms`);
-      if (resRooms.ok) {
-        const roomData = await resRooms.json();
-        const formattedRooms = roomData.map((r: any) => ({
+      const resRooms = await api.get('/rooms');
+      const roomData = resRooms.data;
+      const formattedRooms = roomData.map((r: any) => ({
              ...r, 
              price: Number(r.price),
              total_units: Number(r.total_units),
              capacity: Number(r.capacity)
-        }));
-        setRooms(formattedRooms);
-      }
+      }));
+      setRooms(formattedRooms);
 
       // Fetch Users (Super Admin Only)
-      // Kita pakai try-catch terpisah agar jika forbidden (403), dashboard tetap jalan
-      const resUsers = await fetch(`${apiUrl}/admin/users`, { headers });
-      if (resUsers.ok) {
-          setUsers(await resUsers.json());
-      } else {
-          setUsers([]); // Jika bukan super admin, kosongkan list
+      // Gunakan try-catch terpisah agar kalau forbidden (403), dashboard tetap jalan
+      try {
+          const resUsers = await api.get('/admin/users');
+          setUsers(resUsers.data);
+      } catch (e) {
+          // Ignore 403 error for regular admin
+          setUsers([]);
       }
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      if (err.response && err.response.status === 401) {
+          localStorage.clear();
+          router.push("/login");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -128,14 +122,12 @@ export default function AdminDashboard() {
   // B. Update Status Booking
   const handleUpdateStatus = async (id: number, newStatus: string) => {
     if (!confirm(`Update status booking #${id}?`)) return;
-    const token = localStorage.getItem("token");
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
-    await fetch(`${apiUrl}/admin/bookings/${id}`, {
-      method: 'PUT',
-      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus })
-    });
-    fetchData();
+    try {
+        await api.put(`/admin/bookings/${id}`, { status: newStatus });
+        fetchData();
+    } catch (err) {
+        alert("Gagal update status");
+    }
   };
 
   // C. Edit Kamar
@@ -147,43 +139,29 @@ export default function AdminDashboard() {
   const handleSaveRoom = async () => {
       if (!editingRoom) return;
       setIsSaving(true);
-      const token = localStorage.getItem("token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
       try {
-          const res = await fetch(`${apiUrl}/admin/rooms/${editingRoom.id}`, {
-              method: 'PUT',
-              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-              body: JSON.stringify(formData)
-          });
-          if (res.ok) {
-              alert("Data kamar berhasil diupdate!");
-              setEditingRoom(null);
-              fetchData();
-          } else {
-              alert("Gagal update kamar.");
-          }
-      } catch (error) { console.error(error); } finally { setIsSaving(false); }
+          await api.put(`/admin/rooms/${editingRoom.id}`, formData);
+          alert("Data kamar berhasil diupdate!");
+          setEditingRoom(null);
+          fetchData();
+      } catch (error) { 
+          console.error(error);
+          alert("Gagal update kamar.");
+      } finally { 
+          setIsSaving(false); 
+      }
   };
 
   // D. Manage Users (Super Admin)
   const handleChangeRole = async (id: number, currentRole: string) => {
-    // Logic toggle: jika user -> admin, jika admin -> user
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
     if(!confirm(`Ubah role user ini menjadi ${newRole}?`)) return;
     
-    const token = localStorage.getItem("token");
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
-    
-    const res = await fetch(`${apiUrl}/admin/users/${id}/role`, {
-        method: 'PUT',
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ role: newRole })
-    });
-
-    if(res.ok) {
+    try {
+        await api.put(`/admin/users/${id}/role`, { role: newRole });
         alert("Role berhasil diubah!");
         fetchData(); 
-    } else {
+    } catch (err) {
         alert("Gagal mengubah role. Anda mungkin bukan Super Admin.");
     }
   };
@@ -191,17 +169,10 @@ export default function AdminDashboard() {
   const handleDeleteUser = async (id: number) => {
     if(!confirm("Yakin ingin menghapus user ini permanen?")) return;
     
-    const token = localStorage.getItem("token");
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
-    
-    const res = await fetch(`${apiUrl}/admin/users/${id}`, {
-        method: 'DELETE',
-        headers: { "Authorization": `Bearer ${token}` }
-    });
-
-    if(res.ok) {
+    try {
+        await api.delete(`/admin/users/${id}`);
         fetchData();
-    } else {
+    } catch (err) {
         alert("Gagal menghapus user.");
     }
   };
@@ -290,7 +261,7 @@ export default function AdminDashboard() {
                                 <td className="p-4 text-gray-600">{u.email}</td>
                                 <td className="p-4">
                                     <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${u.role === 'admin' ? 'bg-orange-100 text-orange-700' : u.role === 'super_admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>
-                                        {u.role.replace('_', ' ')}
+                                            {u.role.replace('_', ' ')}
                                     </span>
                                 </td>
                                 <td className="p-4 text-gray-500 text-xs">{new Date(u.created_at).toLocaleDateString()}</td>

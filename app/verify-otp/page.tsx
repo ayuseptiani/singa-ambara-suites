@@ -1,6 +1,7 @@
 "use client";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import api from "@/lib/axios"; // Menggunakan Axios
 
 function VerifyOtpForm() {
   const router = useRouter();
@@ -15,15 +16,9 @@ function VerifyOtpForm() {
     setIsLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
-      const res = await fetch(`${apiUrl}/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      // Axios Post
+      const res = await api.post('/verify-otp', { email, otp });
+      const data = res.data;
 
       // Simpan Token & Login
       localStorage.setItem("token", data.access_token);
@@ -35,7 +30,7 @@ function VerifyOtpForm() {
       router.push("/");
 
     } catch (err: any) {
-      alert(err.message);
+      alert(err.response?.data?.message || err.message);
     } finally {
       setIsLoading(false);
     }

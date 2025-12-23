@@ -3,9 +3,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation"; // 1. TAMBAH IMPORT useRouter
+import { useParams, useRouter } from "next/navigation"; 
+import api from "@/lib/axios"; // Menggunakan Axios
 
-// Tipe Data Kamar
 type Room = {
   id: number;
   slug: string;
@@ -19,7 +19,7 @@ type Room = {
 
 export default function RoomDetail() {
   const params = useParams();
-  const router = useRouter(); // 2. INISIALISASI ROUTER
+  const router = useRouter();
   const slug = params.slug as string;
 
   const [room, setRoom] = useState<Room | null>(null);
@@ -31,14 +31,9 @@ export default function RoomDetail() {
 
     const fetchRoomDetail = async () => {
       try {
-        const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api'}/rooms/${slug}`;
-        const res = await fetch(url);
-        
-        if (!res.ok) {
-            throw new Error("Kamar tidak ditemukan");
-        }
-        
-        const data = await res.json();
+        // Axios Call
+        const res = await api.get(`/rooms/${slug}`);
+        const data = res.data;
 
         const formattedRoom = {
             ...data,
@@ -58,24 +53,17 @@ export default function RoomDetail() {
     fetchRoomDetail();
   }, [slug]);
 
-  // 3. LOGIKA BOOKING PINTAR (SATPAM DIGITAL)
-  // Logika ini sama persis dengan yang ada di halaman daftar kamar
   const handleBookNow = () => {
     if (!room) return;
-
-    // Cek Tiket (Token) di LocalStorage
     const token = localStorage.getItem("token");
 
     if (token) {
-      // SUDAH LOGIN: Langsung arahkan ke halaman Booking
       router.push(`/booking?room=${room.slug}`);
     } else {
-      // BELUM LOGIN: Arahkan ke Login dulu, bawa parameter returnUrl
       router.push(`/login?returnUrl=/booking?room=${room.slug}`);
     }
   };
 
-  // --- TAMPILAN LOADING ---
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0F1619] flex items-center justify-center text-white">
@@ -87,7 +75,6 @@ export default function RoomDetail() {
     );
   }
 
-  // --- TAMPILAN ERROR (404) ---
   if (error || !room) {
     return (
       <div className="min-h-screen bg-[#0F1619] flex flex-col items-center justify-center text-white gap-4">
@@ -98,7 +85,6 @@ export default function RoomDetail() {
     );
   }
 
-  // --- TAMPILAN UTAMA (SUCCESS) ---
   return (
     <main className="min-h-screen bg-[#0F1619] text-gray-200 pb-20">
       
@@ -163,9 +149,6 @@ export default function RoomDetail() {
             </div>
             
             <div className="space-y-4">
-              
-              {/* 4. TOMBOL BOOKING (UPDATED) */}
-              {/* Menggunakan <button> dengan onClick, bukan <Link> */}
               <button 
                 onClick={handleBookNow}
                 className="block w-full text-center bg-[#9F8034] hover:bg-[#8A6E2A] text-white py-4 rounded font-bold uppercase tracking-widest transition duration-300 shadow-lg cursor-pointer"
